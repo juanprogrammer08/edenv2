@@ -3,19 +3,21 @@ FROM python:3.12-slim
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de requerimientos y luego instalarlos para aprovechar cache de Docker
-COPY requirements.txt .
+# Copiar requirements y luego instalar dependencias para aprovechar cache de Docker
+COPY api/requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código de la aplicación
-COPY ./app ./app
+# Copiar el código fuente de la aplicación
+COPY api/app ./app
 
 # Exponer el puerto en el que correrá la API
 EXPOSE 8000
 
-# Variable de entorno para que uvicorn no escriba logs en color (mejor para logs en contenedores)
-ENV UVICORN_LOG_LEVEL=info
+# Variable de entorno para que uvicorn no genere archivos pyc
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# Comando para ejecutar la aplicación con uvicorn, usando root_path /api para que /docs y /openapi.json funcionen bajo /api
+# Comando para ejecutar la aplicación con uvicorn, con root_path /api
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
