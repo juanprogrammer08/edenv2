@@ -2,192 +2,189 @@
 
 ## Descripción General
 
-EDÉN es una aplicación full-stack diseñada para empresas de servicios técnicos (instalaciones, mantenimiento y obras). Permite gestionar cotizaciones, proyectos, control de costos, tareas operativas y administración financiera mediante un asistente empresarial inteligente. La aplicación consta de tres servicios coordinados:
-
-- **Frontend:** SPA React 18 + Vite, con login/registro y guardia de rutas basada en token JWT.
-- **Backend:** API FastAPI con autenticación JWT, persistencia en PostgreSQL o SQLite.
-- **Servidor Web:** Nginx que sirve la SPA y proxya la API.
-
-El despliegue se realiza mediante Docker Compose con los tres servicios: base de datos, API y frontend.
+EDÉN es una aplicación full-stack diseñada para empresas de servicios técnicos (instalaciones, mantenimiento y obras). Permite gestionar cotizaciones, proyectos, control de costos, tareas operativas y administración financiera mediante un asistente empresarial inteligente. La aplicación cuenta con un frontend SPA en React 18 y Vite, un backend API en FastAPI con autenticación JWT y persistencia en PostgreSQL o SQLite, y un servidor web Nginx que sirve la SPA y proxya la API. El despliegue se realiza mediante Docker Compose con tres servicios coordinados: base de datos, API y frontend.
 
 ---
 
-## Contenido del Proyecto
+## Contenido del repositorio
 
 - `README.md` — Documentación y guía de uso.
-- `api/` — Código backend FastAPI.
-- `web.Dockerfile` — Dockerfile para construir y servir la SPA React con Nginx.
-- `docker-compose.yml` — Orquestación de servicios.
-- `nginx.conf` — Configuración Nginx para SPA y proxy API.
-- `index.html` — Entrada HTML para la SPA React.
-- `package.json` — Dependencias y scripts frontend.
-- `src/` — Código fuente React (App.jsx, main.jsx, style.css).
-- `vite.config.js` — Configuración Vite.
+- `docker-compose.yml` — Orquestación de servicios: base de datos, API y frontend.
+- `api/` — Backend FastAPI.
+  - `Dockerfile` — Imagen del backend.
+  - `app/main.py` — Código principal del backend.
+  - `requirements.txt` — Dependencias Python.
+- `web.Dockerfile` — Dockerfile multi-stage para construir y servir la SPA React con Nginx.
+- `nginx.conf` — Configuración de Nginx para servir la SPA y proxy de la API.
+- `index.html` — Archivo HTML principal que carga la SPA React.
+- `package.json` — Dependencias y scripts del frontend React.
+- `vite.config.js` — Configuración del bundler Vite para React.
+- `src/` — Código fuente frontend React.
+  - `main.jsx` — Punto de entrada React.
+  - `App.jsx` — Componente principal con rutas y autenticación.
+  - `style.css` — Estilos CSS propios.
 
 ---
 
-## Desarrollo Local
+## Requisitos previos
 
-### Requisitos Previos
+- Docker y Docker Compose instalados en el sistema.
+- Node.js y npm (para desarrollo local del frontend).
+- Python 3.12 (para desarrollo local del backend).
+- Acceso a un entorno PostgreSQL (opcional, la app puede usar SQLite como fallback).
 
-- Docker y Docker Compose instalados.
-- Node.js 18+ y npm para desarrollo frontend local.
+---
 
-### Levantar la Aplicación Completa con Docker Compose
+## Desarrollo local
 
-1. Clonar el repositorio:
+### 1. Clonar el repositorio
 
 ```bash
 git clone <url-del-repositorio>
-cd <directorio-del-proyecto>
+cd <nombre-del-repositorio>
 ```
 
-2. Construir y levantar los servicios:
+### 2. Backend FastAPI
 
-```bash
-docker-compose up --build
-```
-
-3. Acceder a la aplicación frontend en:
-
-```
-http://localhost:8080
-```
-
-4. La API estará disponible en:
-
-```
-http://localhost:8080/api
-```
-
-### Desarrollo Frontend Local (sin Docker)
-
-1. Entrar en el directorio frontend:
-
-```bash
-cd src
-```
-
-2. Instalar dependencias:
-
-```bash
-npm install
-```
-
-3. Ejecutar servidor de desarrollo:
-
-```bash
-npm run dev
-```
-
-4. Abrir en el navegador:
-
-```
-http://localhost:5173
-```
-
-> Nota: El frontend en desarrollo intentará consumir la API en `/api`. Para evitar problemas de CORS, se recomienda levantar también el backend con Docker o configurar proxy en Vite.
-
-### Desarrollo Backend Local (sin Docker)
-
-1. Entrar en el directorio `api`:
+#### Instalación de dependencias
 
 ```bash
 cd api
-```
-
-2. Crear y activar entorno virtual Python 3.12+:
-
-```bash
 python -m venv venv
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate     # Windows
-```
-
-3. Instalar dependencias:
-
-```bash
+source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Ejecutar la API:
+#### Variables de entorno para desarrollo
+
+Crear un archivo `.env` en `api/` con al menos:
+
+```
+AUTH_SECRET=tu_clave_secreta_jwt
+DATABASE_URL=sqlite+aiosqlite:///./app.db
+```
+
+> Nota: Para usar PostgreSQL local, configure `DATABASE_URL` con la cadena adecuada.
+
+#### Ejecutar backend
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-5. Acceder a la documentación Swagger UI en:
+El backend estará disponible en `http://localhost:8000/api`.
 
+### 3. Frontend React
+
+#### Instalación de dependencias
+
+```bash
+cd ../
+npm install
 ```
-http://localhost:8000/api/docs
+
+#### Ejecutar frontend en modo desarrollo
+
+```bash
+npm run dev
 ```
+
+La SPA estará disponible en `http://localhost:5173` (o el puerto que indique Vite).
+
+### 4. Uso conjunto con Docker Compose (opcional)
+
+Para levantar todos los servicios (PostgreSQL, API y frontend) en contenedores Docker:
+
+```bash
+docker-compose up --build
+```
+
+- La base de datos PostgreSQL estará en el servicio `db`.
+- La API FastAPI en `http://localhost:8000/api`.
+- La SPA React servida por Nginx en `http://localhost:8080`.
 
 ---
 
-## Usuarios de Prueba
+## Usuarios de prueba
 
-Se incluyen usuarios de prueba para facilitar el acceso inicial:
+Para facilitar pruebas, puede registrar usuarios desde la interfaz de login o mediante curl:
 
-| Usuario  | Contraseña |
-|---------|------------|
-| admin   | admin123   |
-| usuario | usuario123 |
+### Registro
 
-> Estos usuarios se pueden registrar también mediante el formulario de registro en la aplicación.
+```bash
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=usuario1&password=clave123"
+```
 
----
+### Login
 
-## Uso de la Aplicación
+```bash
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=usuario1&password=clave123"
+```
 
-- **Login / Registro:** La pantalla inicial permite autenticarse o crear una cuenta nueva.
-- **Autenticación:** Se usa token JWT almacenado en `localStorage`. Cada petición a la API incluye el token en el header `Authorization: Bearer <token>`.
-- **Rutas protegidas:** Solo accesibles tras autenticación.
-- **Datos de ejemplo:** El frontend usa datos de ejemplo si la API no responde.
+La respuesta incluye un token JWT que el frontend guarda en `localStorage` y usa para autenticar las peticiones.
 
 ---
 
 ## Despliegue en Dokploy
 
-Para desplegar EDÉN en Dokploy, siga estos pasos:
+### 1. Construcción y despliegue
 
-1. Suba el proyecto a un repositorio Git accesible.
+Suba el repositorio a Dokploy y configure el despliegue para que ejecute:
 
-2. Cree un nuevo proyecto en Dokploy y configure el despliegue con Docker Compose.
-
-3. Configure las variables de entorno para el servicio `api`:
-
-- `AUTH_SECRET`: Cadena secreta para firmar los tokens JWT (ejemplo: `supersecreto123`).
-- `DATABASE_URL`: Cadena de conexión a la base de datos PostgreSQL. Por defecto:
-
-```
-postgresql+psycopg://studio:studio@db:5432/producto
+```bash
+docker-compose up --build -d
 ```
 
-4. Configure el dominio personalizado en Dokploy para que apunte al puerto **8080** del servicio `web`.
+### 2. Configuración del dominio
 
-5. Inicie el despliegue. Dokploy levantará los tres servicios:
+En Dokploy, asigne el dominio deseado al puerto **8080** del servicio `web` para que la SPA React sea accesible públicamente.
 
-- `db`: PostgreSQL con base de datos `producto`.
-- `api`: Backend FastAPI.
-- `web`: Servidor Nginx con la SPA React.
+### 3. Variables de entorno
 
-6. Acceda a la aplicación mediante el dominio configurado.
+Configure las variables de entorno para el servicio `api` en Dokploy:
+
+- `AUTH_SECRET`: clave secreta para JWT (debe ser segura y privada).
+- `DATABASE_URL`: cadena de conexión a PostgreSQL (si usa base de datos externa) o deje vacío para usar SQLite local.
+
+### 4. Acceso a la aplicación
+
+Una vez desplegado, la aplicación estará disponible en:
+
+```
+http://<tu-dominio>/
+```
+
+La SPA se comunica con la API mediante el proxy configurado en Nginx (`/api`).
 
 ---
 
-## Notas Técnicas
+## Rutas API relevantes
 
-- La API está montada bajo el prefijo `/api`, por lo que todas las rutas (incluyendo `/auth`, `/health`) se acceden como `/api/auth`, `/api/health`, etc.
-- El backend intenta conectarse a PostgreSQL, pero si falla, usa SQLite local `./app.db` para garantizar que la aplicación arranque siempre.
-- El frontend no usa librerías externas para routing o peticiones HTTP, solo React y fetch nativo.
-- El servidor Nginx sirve la SPA y proxya las peticiones `/api` al backend.
-- El token JWT se obtiene en `/api/auth/login` y se usa para proteger las rutas CRUD.
+- `POST /api/auth/register` — Registro de usuario (form-urlencoded: username, password).
+- `POST /api/auth/login` — Login (form-urlencoded: username, password).
+- `GET /api/auth/me` — Información del usuario autenticado (requiere token JWT).
+- `GET /api/health` — Estado de salud del backend.
+- Rutas CRUD protegidas bajo `/api/*` (requieren token JWT en header `Authorization: Bearer <token>`).
 
 ---
 
-## Contacto
+## Notas importantes
 
-Para soporte o consultas, contactar con el equipo de desarrollo de YERUZZA STUDIO.
+- El frontend sólo usa dependencias React oficiales y CSS propio. No se usan librerías externas para routing ni UI.
+- El backend monta todos sus endpoints bajo `/api` para facilitar el proxy inverso.
+- El backend intenta conectar a PostgreSQL y si falla, usa SQLite local para garantizar que la app siempre arranque.
+- El token JWT se guarda en `localStorage` y se envía en cada petición protegida.
+- La SPA es servida por Nginx con configuración para rutas SPA y proxy a la API.
+
+---
+
+## Contacto y soporte
+
+Para dudas o soporte, contacte con el equipo de desarrollo de YERUZZA STUDIO.
 
 ---
 
