@@ -1,225 +1,181 @@
 import React, { useState, useEffect } from 'react';
 
-// Componente principal de la aplicación EDÉN - Asistente Empresarial Inteligente
-// Gestiona autenticación, rutas protegidas y navegación interna sin librerías externas.
-
-function App() {
-  // Estado para usuario autenticado (objeto con username) o null si no hay sesión
+// Componente principal de la aplicación EDÉN
+export default function App() {
+  // Estado para almacenar el token JWT
+  const [token, setToken] = useState(localStorage.getItem('token') || '');
+  // Estado para controlar si el usuario está autenticado
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Estado para almacenar datos del usuario autenticado
   const [user, setUser] = useState(null);
-  // Estado para controlar vistas: 'login', 'register', 'dashboard', 'loading'
-  const [view, setView] = useState('loading');
-  // Estados para formularios de login y registro
-  const [formUsername, setFormUsername] = useState('');
-  const [formPassword, setFormPassword] = useState('');
-  // Estado para mensajes de error o info
-  const [message, setMessage] = useState('');
+  // Estado para controlar la carga de la app
+  const [loading, setLoading] = useState(true);
+  // Estado para controlar errores en login/registro
+  const [error, setError] = useState('');
 
-  // Función para obtener token JWT del localStorage
-  const getToken = () => localStorage.getItem('token');
-
-  // Función para guardar token JWT en localStorage
-  const saveToken = (token) => localStorage.setItem('token', token);
-
-  // Función para eliminar token y cerrar sesión
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-    setView('login');
-    setMessage('');
-    setFormUsername('');
-    setFormPassword('');
+  // Datos de ejemplo para respaldo en caso de fallo de API
+  const exampleData = {
+    message: 'Bienvenido a EDÉN - Asistente Empresarial Inteligente',
   };
 
-  // Función para validar token y obtener datos del usuario (/auth/me)
-  const fetchMe = async (token) => {
+  // Función para validar el token y obtener datos del usuario
+  async function fetchUser(token) {
     try {
       const res = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-      if (!res.ok) throw new Error('No autorizado');
+      if (!res.ok) throw new Error('Token inválido');
       const data = await res.json();
-      setUser({ username: data.username });
-      setView('dashboard');
-      setMessage('');
+      setUser(data);
+      setIsAuthenticated(true);
     } catch {
-      logout();
+      setUser(null);
+      setIsAuthenticated(false);
+      setToken('');
+      localStorage.removeItem('token');
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
-  // Al montar el componente, intentar validar token guardado para mantener sesión
+  // Efecto para validar token al montar el componente
   useEffect(() => {
-    const token = getToken();
     if (token) {
-      fetchMe(token);
+      fetchUser(token);
     } else {
-      setView('login');
+      setLoading(false);
     }
-  }, []);
+  }, [token]);
 
-  // Función para manejar login con formulario
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setMessage('');
-    if (!formUsername || !formPassword) {
-      setMessage('Por favor, complete usuario y contraseña.');
-      return;
-    }
+  // Maneja el envío del formulario de login o registro
+  async function handleAuth(event, mode) {
+    event.preventDefault();
+    setError('');
+    const form = event.target;
+    const formData = new URLSearchParams();
+    formData.append('username', form.username.value.trim());
+    formData.append('password', form.password.value);
+
     try {
-      const body = new URLSearchParams();
-      body.append('username', formUsername);
-      body.append('password', formPassword);
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`/api/auth/${mode}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
       });
       if (!res.ok) {
-        if (res.status === 401) setMessage('Usuario o contraseña incorrectos.');
-        else setMessage('Error en el servidor. Intente más tarde.');
+        if (res.status === 400 || res.status === 401) {
+          setError('Usuario o contraseña incorrectos');
+        } else {
+          setError('Error en el servidor, intente más tarde');
+        }
         return;
       }
       const data = await res.json();
-      saveToken(data.access_token);
-      await fetchMe(data.access_token);
-      setFormPassword('');
-    } catch {
-      setMessage('Error de conexión. Verifique su red.');
-    }
-  };
-
-  // Función para manejar registro con formulario
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setMessage('');
-    if (!formUsername || !formPassword) {
-      setMessage('Por favor, complete usuario y contraseña.');
-      return;
-    }
-    try {
-      const body = new URLSearchParams();
-      body.append('username', formUsername);
-      body.append('password', formPassword);
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
-      if (!res.ok) {
-        if (res.status === 400) setMessage('El usuario ya existe o datos inválidos.');
-        else setMessage('Error en el servidor. Intente más tarde.');
-        return;
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+        setToken(data.access_token);
+      } else {
+        setError('Respuesta inválida del servidor');
       }
-      setMessage('Registro exitoso. Ahora puede iniciar sesión.');
-      setView('login');
-      setFormPassword('');
     } catch {
-      setMessage('Error de conexión. Verifique su red.');
+      setError('No se pudo conectar con el servidor');
     }
-  };
+  }
 
-  // Renderiza formulario de login
-  const renderLogin = () => (
-    <main className="auth-container">
-      <h1>EDÉN - Iniciar Sesión</h1>
-      <form onSubmit={handleLogin} className="auth-form" autoComplete="off">
+  // Cierra sesión limpiando token y estado
+  function handleLogout() {
+    setToken('');
+    setIsAuthenticated(false);
+    setUser(null);
+    localStorage.removeItem('token');
+  }
+
+  // Renderiza el formulario de login o registro
+  function AuthForm({ mode }) {
+    return (
+      <form onSubmit={(e) => handleAuth(e, mode)} className="auth-form">
+        <h2>{mode === 'login' ? 'Iniciar Sesión' : 'Registrar Usuario'}</h2>
         <label htmlFor="username">Usuario</label>
-        <input
-          id="username"
-          type="text"
-          value={formUsername}
-          onChange={(e) => setFormUsername(e.target.value.trim())}
-          autoFocus
-          required
-          autoComplete="username"
-        />
+        <input id="username" name="username" type="text" required autoComplete="username" />
         <label htmlFor="password">Contraseña</label>
-        <input
-          id="password"
-          type="password"
-          value={formPassword}
-          onChange={(e) => setFormPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
-        <button type="submit" className="btn-primary">Entrar</button>
+        <input id="password" name="password" type="password" required autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+        <button type="submit">{mode === 'login' ? 'Entrar' : 'Registrar'}</button>
+        {error && <p className="error">{error}</p>}
       </form>
-      <p>
-        ¿No tiene cuenta?{' '}
-        <button className="link-button" onClick={() => { setView('register'); setMessage(''); }}>
-          Regístrese aquí
-        </button>
-      </p>
-      {message && <p className="message error">{message}</p>}
-    </main>
-  );
+    );
+  }
 
-  // Renderiza formulario de registro
-  const renderRegister = () => (
-    <main className="auth-container">
-      <h1>EDÉN - Registro</h1>
-      <form onSubmit={handleRegister} className="auth-form" autoComplete="off">
-        <label htmlFor="reg-username">Usuario</label>
-        <input
-          id="reg-username"
-          type="text"
-          value={formUsername}
-          onChange={(e) => setFormUsername(e.target.value.trim())}
-          autoFocus
-          required
-          autoComplete="username"
-        />
-        <label htmlFor="reg-password">Contraseña</label>
-        <input
-          id="reg-password"
-          type="password"
-          value={formPassword}
-          onChange={(e) => setFormPassword(e.target.value)}
-          required
-          autoComplete="new-password"
-        />
-        <button type="submit" className="btn-primary">Registrar</button>
-      </form>
-      <p>
-        ¿Ya tiene cuenta?{' '}
-        <button className="link-button" onClick={() => { setView('login'); setMessage(''); }}>
-          Inicie sesión aquí
-        </button>
-      </p>
-      {message && <p className="message error">{message}</p>}
-    </main>
-  );
+  // Componente protegido que muestra contenido tras login
+  function ProtectedContent() {
+    // Ejemplo simple de contenido protegido
+    return (
+      <div className="protected-content">
+        <header>
+          <h1>EDÉN - Asistente Empresarial Inteligente</h1>
+          <p>Bienvenido, <strong>{user?.username}</strong></p>
+          <button onClick={handleLogout} className="logout-button" aria-label="Cerrar sesión">Cerrar sesión</button>
+        </header>
+        <main>
+          <section>
+            <h2>Panel Principal</h2>
+            <p>{exampleData.message}</p>
+            {/* Aquí se pueden agregar más componentes y rutas protegidas */}
+          </section>
+        </main>
+      </div>
+    );
+  }
 
-  // Renderiza dashboard protegido (contenido principal de la app)
-  const renderDashboard = () => (
-    <main className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>Bienvenido, {user.username}</h1>
-        <button className="btn-logout" onClick={logout} title="Cerrar sesión">Salir</button>
-      </header>
-      <section className="dashboard-content">
-        {/* Aquí se pueden agregar componentes hijos para cotizaciones, proyectos, tareas, etc. */}
-        <p>Esta es la pantalla principal del asistente empresarial EDÉN.</p>
-        <p>Funcionalidades futuras: gestión de cotizaciones, proyectos, costos, tareas y finanzas.</p>
-      </section>
-    </main>
-  );
+  // Renderizado principal
+  if (loading) {
+    return <div className="loading">Cargando...</div>;
+  }
 
-  // Renderiza pantalla de carga mientras se valida sesión
-  const renderLoading = () => (
-    <main className="loading-container">
-      <p>Cargando...</p>
-    </main>
-  );
+  if (!isAuthenticated) {
+    // Muestra login y registro en pestañas simples
+    const [mode, setMode] = useState('login');
+    return (
+      <div className="auth-container">
+        <nav className="auth-nav" role="tablist" aria-label="Autenticación">
+          <button
+            role="tab"
+            aria-selected={mode === 'login'}
+            onClick={() => setMode('login')}
+            className={mode === 'login' ? 'active' : ''}
+            id="tab-login"
+            aria-controls="tabpanel-login"
+            type="button"
+          >
+            Iniciar Sesión
+          </button>
+          <button
+            role="tab"
+            aria-selected={mode === 'register'}
+            onClick={() => setMode('register')}
+            className={mode === 'register' ? 'active' : ''}
+            id="tab-register"
+            aria-controls="tabpanel-register"
+            type="button"
+          >
+            Registrar
+          </button>
+        </nav>
+        <section
+          role="tabpanel"
+          id={`tabpanel-${mode}`}
+          aria-labelledby={`tab-${mode}`}
+          tabIndex={0}
+          className="auth-tabpanel"
+        >
+          <AuthForm mode={mode} />
+        </section>
+      </div>
+    );
+  }
 
-  // Renderizado condicional según vista actual
-  return (
-    <>
-      {view === 'loading' && renderLoading()}
-      {view === 'login' && renderLogin()}
-      {view === 'register' && renderRegister()}
-      {view === 'dashboard' && user && renderDashboard()}
-    </>
-  );
+  return <ProtectedContent />;
 }
-
-export default App;
